@@ -1,39 +1,23 @@
 const API_KEY = import.meta.env.VITE_TMDB_KEY;
-const BASE_URL = "https://api.themoviedb.org/3";
+const TOKEN = import.meta.env.VITE_TMDB_TOKEN;
+
+const BASE = "https://api.themoviedb.org/3";
 
 async function request(path) {
-  const url = `${BASE_URL}${path}&api_key=${API_KEY}`;
+  const url = `${BASE}${path}${path.includes("?") ? "&" : "?"}api_key=${API_KEY || ""}`;
 
-  console.log("Fetching:", url);
+  const res = await fetch(url, {
+    headers: TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {},
+  });
 
-  const res = await fetch(url);
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || "TMDB API Error");
-  }
-  return res.json();
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(JSON.stringify(data));
+  return data;
 }
 
 export const tmdb = {
-  trending: () =>
-    request("/trending/movie/week?language=en-US"),
-
-  popular: () =>
-    request("/movie/popular?language=en-US&page=1"),
-
-  arabic: () =>
-    request("/discover/movie?language=ar&with_original_language=ar&page=1"),
-
-  movieDetails: (id) =>
-    request(`/movie/${id}?language=en-US`),
-
-  movieVideos: (id) =>
-    request(`/movie/${id}/videos?language=en-US`),
-
-  search: (query) =>
-    request(`/search/movie?query=${encodeURIComponent(query)}&language=en-US&page=1`),
-
-  // ✅ مهم لصفحة المشاهدة (Where to Watch)
-  watchProviders: (id) =>
-    request(`/movie/${id}/watch/providers`)
+  trending: () => request("/trending/movie/week?language=en-US&page=1"),
+  popular: () => request("/movie/popular?language=en-US&page=1"),
+  search: (q) => request(`/search/movie?query=${encodeURIComponent(q)}&language=en-US&page=1`),
+  videos: (id) => request(`/movie/${id}/videos?language=en-US`),
 };
