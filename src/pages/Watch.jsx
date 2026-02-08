@@ -5,24 +5,40 @@ import { tmdb } from "../api/tmdb";
 export default function Watch() {
   const { id } = useParams();
   const [providers, setProviders] = useState(null);
+  const [trailer, setTrailer] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
   useEffect(() => {
     setLoading(true);
     setErr("");
-
-    tmdb.watchProviders(id)
-      .then((data) => setProviders(data))
-      .catch((e) => setErr(e.message))
-      .finally(() => setLoading(false));
+    
+    const fetchData = async () => {
+      try {
+        // جلب المقطع الدعائي
+        const videosData = await tmdb.videos(id);
+        const trailerVideo = videosData.results?.find(
+          (v) => v.type === "Trailer" && v.site === "YouTube"
+        );
+        if (trailerVideo) {
+          setTrailer(trailerVideo.key);
+        }
+        
+        // جلب مزودي المحتوى
+        const providersData = await tmdb.watchProviders(id);
+        setProviders(providersData);
+      } catch (e) {
+        setErr(e.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchData();
   }, [id]);
 
-  const country = "EG"; // أو لو عندك env استخدمه
+  const country = "EG";
   const countryData = providers?.results?.[country] || null;
-
-  // TMDB بيرجع لينك "tmdb://..." مش Web دايمًا — فهنستخدم صفحة TMDB كحل ثابت:
-  const tmdbWebLink = `https://www.themoviedb.org/movie/${id}/watch`;
 
   if (loading) return <div className="container"><h2>Loading...</h2></div>;
   if (err) return <div className="container"><pre style={{ color: "tomato" }}>{err}</pre></div>;
@@ -31,17 +47,41 @@ export default function Watch() {
     <div className="container">
       <Link className="btn" to={`/movie/${id}`}>← Back to details</Link>
 
-      <h2 className="sectionTitle" style={{ marginTop: 18 }}>Where to watch</h2>
+      {trailer && (
+        <div style={{ marginTop: 20, marginBottom: 30 }}>
+          <h2 className="sectionTitle" style={{ marginBottom: 12 }}>مقطع دعائي - Trailer</h2>
+          <div style={{
+            position: "relative",
+            paddingBottom: "56.25%",
+            height: 0,
+            overflow: "hidden",
+            borderRadius: 8,
+            background: "#000"
+          }}>
+            <iframe
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: "100%",
+                border: "none",
+                borderRadius: 8
+              }}
+              src={`https://www.youtube.com/embed/${trailer}`}
+              title="Movie Trailer"
+              allowFullScreen
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            ></iframe>
+          </div>
+        </div>
+      )}
 
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
-        <a className="btn" href={tmdbWebLink} target="_blank" rel="noreferrer">
-          Open on TMDB
-        </a>
-      </div>
+      <h2 className="sectionTitle" style={{ marginTop: 18 }}>Where to watch</h2>
 
       {!countryData && (
         <div style={{ color: "rgba(255,255,255,.75)" }}>
-          Not available in your region ({country}) — try TMDB link above.
+          Not available in your region ({country}).
         </div>
       )}
 
@@ -59,7 +99,7 @@ export default function Watch() {
 
           {(!countryData.flatrate?.length && !countryData.rent?.length && !countryData.buy?.length) && (
             <div style={{ color: "rgba(255,255,255,.75)" }}>
-              No providers list returned for {country}. Use TMDB button above.
+              No providers available for {country}.
             </div>
           )}
         </div>
